@@ -407,6 +407,17 @@ footer{border-top:1px solid var(--border);padding:40px 24px;text-align:center;}
     <!-- PANEL BODY -->
     <div class="admin-body" id="adminBody">
 
+      <!-- TOKEN STATUS -->
+      <div class="admin-section" style="border-color:rgba(232,255,71,0.2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted2);margin-bottom:4px;">GitHub Sync Status</div>
+            <div id="tokenStatus" style="font-size:13px;font-weight:600;color:#ff6b6b;">No token - changes save locally only</div>
+          </div>
+          <button onclick="promptToken()" style="background:var(--accent);color:#080808;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;">Update Token</button>
+        </div>
+      </div>
+
       <!-- STATS -->
       <div class="admin-section">
         <div class="admin-section-title">Stats</div>
@@ -851,6 +862,11 @@ function showToast(msg) {
 // ── ADMIN PANEL ────────────────────────────────────────────────────────────────
 function openAdmin() {
   document.getElementById('adminOverlay').classList.add('open');
+  // Restore token from session if available
+  try {
+    var saved = sessionStorage.getItem('palvx_token');
+    if (saved) GITHUB_TOKEN = saved;
+  } catch(e){}
   if(adminLoggedIn) showAdminBody();
 }
 function closeAdmin() {
@@ -861,11 +877,31 @@ function checkLogin() {
   if(pw === ADMIN_PASSWORD){
     adminLoggedIn = true;
     var tok = document.getElementById('adminToken').value.trim();
-    if (tok) GITHUB_TOKEN = tok;
+    if (tok) {
+      GITHUB_TOKEN = tok;
+      try { sessionStorage.setItem('palvx_token', tok); } catch(e){}
+    } else {
+      // Try to restore from session
+      try {
+        var saved = sessionStorage.getItem('palvx_token');
+        if (saved) { GITHUB_TOKEN = saved; document.getElementById('adminToken').value = saved; }
+      } catch(e){}
+    }
     showAdminBody();
     document.getElementById('loginErr').style.display='none';
   } else {
     document.getElementById('loginErr').style.display='block';
+  }
+}
+function checkTokenStatus() {
+  var el = document.getElementById('tokenStatus');
+  if (!el) return;
+  if (GITHUB_TOKEN) {
+    el.textContent = 'Token active - changes save for everyone';
+    el.style.color = '#e8ff47';
+  } else {
+    el.textContent = 'No token - changes save locally only';
+    el.style.color = '#ff6b6b';
   }
 }
 function showAdminBody() {
@@ -874,6 +910,7 @@ function showAdminBody() {
   updateAdminStats();
   renderAdminList();
   updateNextDropNum();
+  checkTokenStatus();
 }
 
 function updateAdminStats() {
@@ -985,6 +1022,16 @@ function exportData() {
   var a = document.createElement('a'); a.href=url; a.download='palvx-backup-'+Date.now()+'.json'; a.click();
   URL.revokeObjectURL(url);
   showToast('Backup downloaded!');
+}
+
+function promptToken() {
+  var tok = prompt('Paste your GitHub token (ghp_...):');
+  if (tok && tok.trim()) {
+    GITHUB_TOKEN = tok.trim();
+    try { sessionStorage.setItem('palvx_token', tok.trim()); } catch(e){}
+    checkTokenStatus();
+    showToast('Token updated! You can now save songs.');
+  }
 }
 
 // ── SCROLL REVEAL ──────────────────────────────────────────────────────────────
