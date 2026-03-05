@@ -442,7 +442,18 @@ footer{border-top:1px solid var(--border);padding:40px 24px;text-align:center;}
           </div>
           <div class="a-field"><div class="a-label">Duration (eg. 0:30)</div><input class="a-inp" id="aDur" placeholder="0:30"/></div>
         </div>
-        <div class="a-field" style="margin-bottom:10px"><div class="a-label">MP3 File URL (Google Drive link)</div><input class="a-inp" id="aFile" placeholder="https://drive.google.com/uc?export=download&id=..."/></div>
+        <div class="a-field" style="margin-bottom:10px">
+          <div class="a-label">Google Drive Link</div>
+          <input class="a-inp" id="aFile" placeholder="Paste any Google Drive link here..." oninput="previewDriveLink()"/>
+          <div id="drivePreview" style="display:none;margin-top:8px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;">
+            <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;">Link Converted</div>
+            <div id="convertedLink" style="font-size:11px;color:var(--muted2);word-break:break-all;font-family:'DM Mono',monospace;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:8px;">
+              <audio id="driveAudioPreview" controls style="flex:1;height:36px;filter:invert(1) brightness(0.7);"></audio>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;">Paste the normal share link — we auto convert it. Make sure file is set to <strong style="color:var(--accent)">Anyone with link</strong> in Drive.</div>
+        </div>
         <div class="a-form-row">
           <div class="a-field">
             <div class="a-label">Status</div>
@@ -816,12 +827,40 @@ function updateNextDropNum() {
   document.getElementById('nextDropNum').textContent = '#' + padNum(getNextId());
 }
 
+function convertDriveLink(url) {
+  if (!url) return '';
+  // Already a direct link
+  if (url.indexOf('uc?export=download') > -1) return url;
+  // Format: /file/d/FILE_ID/view
+  var m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m1) return 'https://drive.google.com/uc?export=download&id=' + m1[1];
+  // Format: id=FILE_ID
+  var m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m2) return 'https://drive.google.com/uc?export=download&id=' + m2[1];
+  // Format: /open?id=FILE_ID
+  var m3 = url.match(/\/open\?id=([a-zA-Z0-9_-]+)/);
+  if (m3) return 'https://drive.google.com/uc?export=download&id=' + m3[1];
+  return url;
+}
+
+function previewDriveLink() {
+  var raw = document.getElementById('aFile').value.trim();
+  var preview = document.getElementById('drivePreview');
+  var converted = document.getElementById('convertedLink');
+  var audioEl = document.getElementById('driveAudioPreview');
+  if (!raw) { preview.style.display = 'none'; return; }
+  var direct = convertDriveLink(raw);
+  converted.textContent = direct;
+  audioEl.src = direct;
+  preview.style.display = 'block';
+}
+
 function addRingtone() {
   var name = document.getElementById('aName').value.trim();
   var emoji = document.getElementById('aEmoji').value.trim() || '&#x1F3B5;';
   var cat = document.getElementById('aCat').value;
   var dur = document.getElementById('aDur').value.trim() || '0:30';
-  var file = document.getElementById('aFile').value.trim();
+  var file = convertDriveLink(document.getElementById('aFile').value.trim());
   var status = document.getElementById('aStatus').value;
   var trend = document.getElementById('aTrend').value === 'yes';
   if(!name){showToast('Please enter a ringtone name');return;}
@@ -832,6 +871,7 @@ function addRingtone() {
   document.getElementById('aName').value='';
   document.getElementById('aEmoji').value='';
   document.getElementById('aFile').value='';
+  document.getElementById('drivePreview').style.display='none';
   updateAdminStats();
   renderAdminList();
   updateNextDropNum();
