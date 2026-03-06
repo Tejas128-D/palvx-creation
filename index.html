@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Palvx Creation - Daily Viral Ringtones</title>
 <meta name="description" content="Download daily viral ringtones - Hindi, Anime, POV, BGM, Aesthetic and more. New drops every day."/>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6L3Y6140CD"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-6L3Y6140CD');
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#080808;--bg2:#0f0f0f;--bg3:#161616;--border:#222;--text:#f5f5f5;--muted:#555;--muted2:#888;--accent:#e8ff47;--accent2:#ff47a3;--radius:14px;}
@@ -467,7 +475,7 @@ function makeCard(r){
   if(r.file){ dl=document.createElement('a'); dl.className='ic-sm'; dl.href=r.file; dl.setAttribute('download',r.name); }
   else{ dl=document.createElement('button'); dl.className='ic-sm'; dl.onclick=function(){ showToast('MP3 coming soon! Follow on Instagram'); }; }
   dl.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4h14v-2H5v2z"/></svg>';
-  var acts=document.createElement('div'); acts.className='rt-acts'; acts.appendChild(pb); acts.appendChild(dl);
+  dl.addEventListener('click', function(){ gtag('event','download',{ringtone_name:r.name,category:r.cat,drop_num:r.num}); });
   var bar=document.createElement('div'); bar.className='rt-bar'; bar.id='bar-'+r.id;
   card.appendChild(icon); card.appendChild(info); card.appendChild(acts); card.appendChild(bar);
   return card;
@@ -513,6 +521,7 @@ function play(r,card){
   audio.ontimeupdate=function(){ if(bar&&audio.duration) bar.style.width=(audio.currentTime/audio.duration*100)+'%'; };
   audio.onended=function(){ if(card) card.classList.remove('playing'); if(bar) bar.style.width='0'; curAudio=null; curCard=null; };
   audio.play().catch(function(){ showToast('Tap download to get this ringtone'); });
+  gtag('event','play',{ringtone_name:r.name,category:r.cat,drop_num:r.num});
   openHowto();
 }
 
