@@ -472,10 +472,15 @@ function makeCard(r){
   var pb=document.createElement('button'); pb.className='ic-sm'; pb.innerHTML='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
   pb.onclick=(function(rt,c){ return function(){ play(rt,c); }; })(r,card);
   var dl;
-  if(r.file){ dl=document.createElement('a'); dl.className='ic-sm'; dl.href=r.file; dl.setAttribute('download',r.name); }
-  else{ dl=document.createElement('button'); dl.className='ic-sm'; dl.onclick=function(){ showToast('MP3 coming soon! Follow on Instagram'); }; }
+  if(r.file){
+    dl=document.createElement('a'); dl.className='ic-sm'; dl.href=r.file; dl.setAttribute('download',r.name);
+    dl.onclick=function(){ openHowto(); gtag('event','download',{ringtone_name:r.name,category:r.cat,drop_num:r.num||''}); };
+  } else {
+    dl=document.createElement('button'); dl.className='ic-sm';
+    dl.onclick=function(){ showToast('MP3 coming soon! Follow on Instagram'); };
+  }
   dl.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4h14v-2H5v2z"/></svg>';
-  dl.addEventListener('click', function(){ gtag('event','download',{ringtone_name:r.name,category:r.cat,drop_num:r.num}); });
+  var acts=document.createElement('div'); acts.className='rt-acts'; acts.appendChild(pb); acts.appendChild(dl);
   var bar=document.createElement('div'); bar.className='rt-bar'; bar.id='bar-'+r.id;
   card.appendChild(icon); card.appendChild(info); card.appendChild(acts); card.appendChild(bar);
   return card;
@@ -503,8 +508,13 @@ function makeDropCard(r){
   var pb=document.createElement('button'); pb.className='ic-sm'; pb.innerHTML='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
   pb.onclick=(function(rt,c){ return function(){ play(rt,c); }; })(r,card);
   var dl;
-  if(r.file){ dl=document.createElement('a'); dl.className='ic-sm'; dl.href=r.file; dl.setAttribute('download',r.name); }
-  else{ dl=document.createElement('button'); dl.className='ic-sm'; dl.onclick=function(){ showToast('MP3 coming soon!'); }; }
+  if(r.file){
+    dl=document.createElement('a'); dl.className='ic-sm'; dl.href=r.file; dl.setAttribute('download',r.name);
+    dl.onclick=function(){ openHowto(); gtag('event','download',{ringtone_name:r.name,category:r.cat,drop_num:r.num||''}); };
+  } else {
+    dl=document.createElement('button'); dl.className='ic-sm';
+    dl.onclick=function(){ showToast('MP3 coming soon!'); };
+  }
   dl.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4h14v-2H5v2z"/></svg>';
   var acts=document.createElement('div'); acts.className='drop-acts'; acts.appendChild(pb); acts.appendChild(dl);
   card.appendChild(num); card.appendChild(em); card.appendChild(iw); card.appendChild(acts);
@@ -522,7 +532,6 @@ function play(r,card){
   audio.onended=function(){ if(card) card.classList.remove('playing'); if(bar) bar.style.width='0'; curAudio=null; curCard=null; };
   audio.play().catch(function(){ showToast('Tap download to get this ringtone'); });
   gtag('event','play',{ringtone_name:r.name,category:r.cat,drop_num:r.num});
-  openHowto();
 }
 
 function openHowto(){ renderHowto(); document.getElementById('modal').classList.add('open'); }
