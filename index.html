@@ -88,6 +88,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,8,8,0.97);
 /* SECTIONS */
 .section{max-width:1200px;margin:0 auto;padding:48px 20px;}
 .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.section-left{}
 .section-tag{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;}
 .section-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,5vw,48px);letter-spacing:1px;line-height:1;}
 .see-all{font-size:11px;color:var(--muted2);cursor:pointer;border:1px solid var(--border);padding:6px 14px;border-radius:100px;transition:all 0.2s;background:none;font-family:'DM Sans',sans-serif;}
@@ -260,6 +261,12 @@ footer{border-top:1px solid var(--border);padding:40px 24px;text-align:center;ma
 .wall-notify-btn:hover{transform:scale(1.04);}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.req-item{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:6px;}
+.req-item-type{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;}
+.req-item-text{font-size:13px;font-weight:500;margin-bottom:4px;}
+.req-item-meta{font-size:11px;color:var(--muted2);margin-bottom:8px;}
+.req-item-acts{display:flex;gap:6px;}
+.req-new{background:rgba(232,255,71,0.1);border-color:rgba(232,255,71,0.2);}
 .rv{opacity:0;transform:translateY(12px);transition:opacity 0.5s,transform 0.5s;}
 .rv.in{opacity:1;transform:translateY(0);}
 </style>
@@ -580,6 +587,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const COL = 'ringtones';
+const REQ_COL = 'requests';
+var REQUESTS = [];
 
 // ── DATA ───────────────────────────────────────────────────────────────────────
 var DATA = [];
@@ -624,6 +633,42 @@ function startListening() {
     buildHome();
     if (adminLoggedIn) { updateAdminStats(); renderAdminList(); }
   }, (err) => { showToast('DB error: ' + err.code); });
+}
+
+function loadRequests() {
+  const q = query(collection(db, REQ_COL), orderBy('createdAt','desc'));
+  onSnapshot(q, (snap) => {
+    REQUESTS = [];
+    snap.forEach((d) => REQUESTS.push({...d.data(), _docId: d.id}));
+    if (adminLoggedIn) renderReqList();
+  });
+}
+
+function renderReqList() {
+  var list = document.getElementById('reqList'); if(!list) return;
+  var newCount = REQUESTS.filter(function(r){ return r.status==='new'; }).length;
+  document.getElementById('reqCount').textContent = REQUESTS.length + ' total' + (newCount>0?' · '+newCount+' new 🔴':'');
+  if(!REQUESTS.length){ list.innerHTML='<div class="empty" style="padding:20px">No requests yet</div>'; return; }
+  list.innerHTML='';
+  REQUESTS.forEach(function(r){
+    var item=document.createElement('div'); item.className='req-item'+(r.status==='new'?' req-new':'');
+    var type=document.createElement('div'); type.className='req-item-type'; type.textContent=(r.type==='wallpaper'?'🖼️ Wallpaper Request':'🎵 Sound Request')+(r.status==='new'?' · NEW':'');
+    var name=document.createElement('div'); name.className='req-item-text'; name.textContent=r.type==='wallpaper'?('Category: '+r.category):('"'+r.request+'"');
+    var meta=document.createElement('div'); meta.className='req-item-meta';
+    var d=new Date(r.createdAt); meta.textContent='From: '+(r.name||'Anonymous')+' · '+(r.category||'')+' · '+d.toLocaleDateString();
+    if(r.note){ var note=document.createElement('div'); note.style.cssText='font-size:11px;color:var(--muted2);margin-top:2px;'; note.textContent='Note: '+r.note; item.appendChild(type); item.appendChild(name); item.appendChild(meta); item.appendChild(note); }
+    else { item.appendChild(type); item.appendChild(name); item.appendChild(meta); }
+    var acts=document.createElement('div'); acts.className='req-item-acts';
+    if(r.status==='new'){
+      var doneBtn=document.createElement('button'); doneBtn.className='a-item-btn pub'; doneBtn.textContent='Mark Done';
+      doneBtn.onclick=async function(){ try{ await updateDoc(doc(db,REQ_COL,r._docId),{status:'done'}); }catch(e){ showToast('Error: '+e.message); } };
+      acts.appendChild(doneBtn);
+    }
+    var delBtn=document.createElement('button'); delBtn.className='a-item-btn del'; delBtn.textContent='Delete';
+    delBtn.onclick=async function(){ try{ await deleteDoc(doc(db,REQ_COL,r._docId)); }catch(e){ showToast('Error: '+e.message); } };
+    acts.appendChild(delBtn); item.appendChild(acts);
+    list.appendChild(item);
+  });
 }
 
 function getPub() { return DATA.filter(function(r){ return r.status==='published'; }); }
@@ -863,10 +908,14 @@ window.openWallModal=function(){
   });
   document.getElementById('wallModal').classList.add('open');
 };
-window.submitWallReq=function(){
+window.submitWallReq=async function(){
   var sel=document.querySelector('.wall-cat-btn.sel');
   var cat=sel?sel.textContent:'Not specified';
-  var note=document.getElementById('wallNote').value;
+  var note=document.getElementById('wallNote').value.trim();
+  var name=document.getElementById('wallName').value.trim();
+  try{
+    await addDoc(collection(db,REQ_COL),{type:'wallpaper',category:cat,note:note,name:name||'Anonymous',status:'new',createdAt:Date.now()});
+  }catch(e){ console.log(e); }
   closeModal('wallModal');
   showToast('Request sent! We\'ll drop '+cat+' wallpapers soon 🖼️');
   document.getElementById('wallName').value=''; document.getElementById('wallNote').value='';
@@ -878,10 +927,14 @@ function buildReqCatSelect(){
   var sel=document.getElementById('reqCat'); sel.innerHTML='';
   CATS.forEach(function(cat){ var opt=document.createElement('option'); opt.value=cat.id; opt.textContent=cat.icon+' '+cat.name; sel.appendChild(opt); });
 }
-window.submitReq=function(){
+window.submitReq=async function(){
   var name=document.getElementById('reqName').value.trim();
+  var cat=document.getElementById('reqCat').value;
   var text=document.getElementById('reqText').value.trim();
   if(!text){ showToast('Please describe what you want'); return; }
+  try{
+    await addDoc(collection(db,REQ_COL),{type:'sound',name:name||'Anonymous',category:cat,request:text,status:'new',createdAt:Date.now()});
+  }catch(e){ console.log(e); }
   closeModal('reqModal');
   showToast('Request sent! We\'ll drop it soon 🎵');
   document.getElementById('reqName').value=''; document.getElementById('reqText').value='';
@@ -900,7 +953,7 @@ window.doLogin=function(){
 function showAdminBody(){
   document.getElementById('aLoginWrap').style.display='none';
   document.getElementById('aBody').style.display='block';
-  updateAdminStats(); renderAdminList();
+  updateAdminStats(); renderAdminList(); renderReqList();
 }
 function updateAdminStats(){
   var pub=0,draft=0; DATA.forEach(function(r){ if(r.status==='published') pub++; else draft++; });
@@ -968,6 +1021,7 @@ document.querySelectorAll('.rv').forEach(function(el){ obs.observe(el); });
 // ── START ──────────────────────────────────────────────────────────────────────
 renderHowto();
 startListening();
+loadRequests();
 </script>
 </body>
 </html>
